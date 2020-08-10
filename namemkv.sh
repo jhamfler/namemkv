@@ -1,109 +1,21 @@
 #!/bin/bash
+isoorig=iso-639-3_20200130.tab # sourced from www.iso639-3.sil.org ; tested with https://iso639-3.sil.org/sites/iso639-3/files/downloads/iso-639-3_Code_Tables_20200130.zip
+isotab=iso-639-3_20200130_namemkv.tab
+online=1
 [ -z $(command -v jq) ] && echo "please install jq" && exit 1
-
+[ -z $(command -v hq) ] && echo "please install hq to read online titles" && online=0
+[ -z $(command -v curl) ] && echo "please install curl to read online titles" && online=0
+[ ! -f "$isoorig" ] && [ ! -f "$isotab" ] && echo "iso language table not present, please download from " && exit 1
+[ ! -f "$isotab" ] && cat iso-639-3_*.tab|awk -F "\t" '{print " " $1 " " $2 " " $3 " " $4 " "}' > "$isotab"
 [ -z "$1" ] && echo "usage: namemkv file.mkv" && exit 1
 json=$(mediainfo --Output=JSON "$1")
-
-declare -A lang
-lang["is"]="isl"
-lang["ice"]="isl"
-lang["nb"]="nob"
-lang["nob"]="nob"
-lang["no"]="nor"
-lang["nor"]="nor"
-lang["sv"]="swe"
-lang["swe"]="swe"
-lang["fi"]="fin"
-lang["fin"]="fin"
-lang["en"]="eng"
-lang["eng"]="eng"
-lang["fr"]="fra"
-lang["fra"]="fra"
-lang["fre"]="fra"
-lang["nl"]="nld"
-lang["nld"]="nld"
-lang["dut"]="nld"
-lang["da"]="dan"
-lang["dan"]="dan"
-lang["de"]="deu"
-lang["deu"]="deu"
-lang["ger"]="deu"
-lang["pl"]="pol"
-lang["pol"]="pol"
-lang["cs"]="ces"
-lang["ces"]="ces"
-lang["cze"]="ces"
-lang["sk"]="slk"
-lang["slk"]="slk"
-lang["slo"]="slk"
-lang["sl"]="slv"
-lang["slv"]="slv"
-lang["it"]="ita"
-lang["ita"]="ita"
-lang["es"]="spa"
-lang["spa"]="spa"
-lang["ca"]="cat"
-lang["cat"]="cat"
-lang["pt"]="por"
-lang["por"]="por"
-lang["et"]="est"
-lang["est"]="est"
-lang["lt"]="lit"
-lang["lit"]="lit"
-lang["lv"]="lav"
-lang["lav"]="lav"
-lang["hu"]="hun"
-lang["hun"]="hun"
-lang["el"]="ell"
-lang["ell"]="ell"
-lang["gre"]="ell"
-lang["he"]="heb"
-lang["heb"]="heb"
-lang["ro"]="ron"
-lang["rum"]="ron"
-lang["ron"]="ron"
-lang["hr"]="hrv"
-lang["hrv"]="hrv"
-lang["sr"]="srp"
-lang["srp"]="srp"
-lang["tr"]="tur"
-lang["tur"]="tur"
-lang["ru"]="rus"
-lang["rus"]="rus"
-lang["uk"]="ukr"
-lang["ukr"]="ukr"
-lang["bg"]="bul"
-lang["bul"]="bul"
-lang["ar"]="ara"
-lang["ara"]="ara"
-lang["hi"]="hin"
-lang["hin"]="hin"
-lang["zh"]="zho"
-lang["chi"]="zho"
-lang["zho"]="zho"
-lang["ko"]="kor"
-lang["kor"]="kor"
-lang["th"]="tha"
-lang["tha"]="tha"
-lang["ja"]="jpn"
-lang["jpn"]="jpn"
-lang["id"]="ind"
-lang["ind"]="ind"
-lang["ms"]="msa"
-lang["may"]="msa"
-lang["msa"]="msa"
-lang["ta"]="tam"
-lang["tam"]="tam"
-lang["te"]="tel"
-lang["tel"]="tel"
-
 
 i=-1
 while (true)
 do
-	echo $i
+	#echo $i
 	out=$(echo $json | jq ".media.track[$i].ID" | tr -d '"')
-	echo $out
+	#echo $out
 	[ "$out" != "null" ] && break
 	i=$((i - 1))
 done
@@ -126,6 +38,16 @@ fi
 
 name=$(echo $json | jq '.media.track[0].Title' | tr -d '"' | tr ' ' '.' | sed 's/:/.-/g')
 echo "Name: $name"
+
+year=""
+if [ "$online" == "1" ]
+then
+	yeardata=$(echo $json | jq '.media.track[0].Title' | tr -d '"' | tr ' ' '+')
+	yeardata=$(curl https://www.imdb.com/find\?q\="$yeardata"\&ref_\=nv_sr_sm)
+	yeardata=$(cat test)
+	yeardata=$(echo $yeardata | hq td data | sed -n 2p | grep -o '(.*)' | grep -o '[0-9]*')
+	[ ! -z "$yeardata"	] && [ -z "$(echo $yeardata | grep -E '[0-9]{5}')" ] && [ ! -z "$(echo $yeardata | grep -E '[0-9]{4}')" ] && echo releaseyear: $yeardata && year='.'$yeardata
+fi
 
 VID=""
 DUB=()
@@ -160,11 +82,14 @@ do
 	if [ "$type" == "Audio" ]
 	then
 		alang=$(echo $json | jq ".media.track[$i].Language" | tr -d '"')
-		if [ -z "${lang["$alang"]}" ]
+		count=$(grep -E " $alang " "$isotab" | wc -l)
+		[ $count -gt 1 ] && echo "more than one occurence of a language code: $alang" && exit 1
+		rlang=$(grep -E " $alang " "$isotab"| awk -F " " '{print $1}')
+		if [ -z "$rlang" ]
 		then
 			echo unmapped $alang
 		else
-			alang="${lang["$alang"]}"
+			alang=$rlang
 		fi
 		echo Language: "$alang"
 		DUB[$idub]="$alang"
@@ -174,12 +99,15 @@ do
 	if [ "$type" == "Text" ]
 	then
 		tlang=$(echo $json | jq ".media.track[$i].Language" | tr -d '"')
-		if [ -z "${lang["$tlang"]}" ]
+		count=$(grep -E " $tlang " "$isotab" | wc -l)
+		[ $count -gt 1 ] && echo "more than one occurence of a language code: $tlang" && exit 1
+		rlang=$(grep -E " $tlang " "$isotab"| awk -F " " '{print $1}')
+		if [ -z "$rlang" ]
 		then
 			echo unmapped $tlang
 			exit 2
 		else
-			tlang="${lang["$tlang"]}"
+			tlang="$rlang"
 		fi
 		echo Language: "$tlang"
 		SUB[$isub]="$tlang"
@@ -205,4 +133,4 @@ for i in ${SUBu[@]}
 do
 	SUB=$SUB"$i""."
 done
-echo $name".DUB.$DUB""SUB.$SUB$VID$format"
+echo $name$year".DUB.$DUB""SUB.$SUB$VID$format"
