@@ -1,6 +1,7 @@
 #!/bin/bash
-isoorig=iso-639-3_20200130.tab # sourced from www.iso639-3.sil.org ; tested with https://iso639-3.sil.org/sites/iso639-3/files/downloads/iso-639-3_Code_Tables_20200130.zip
-isotab=iso-639-3_20200130_namemkv.tab
+path=$(dirname $(readlink -f "$0"))
+isoorig="$path""/iso-639-3_20200130.tab" # sourced from www.iso639-3.sil.org ; tested with https://iso639-3.sil.org/sites/iso639-3/files/downloads/iso-639-3_Code_Tables_20200130.zip
+isotab="$path""/iso-639-3_20200130_namemkv.tab"
 online=1
 [ -z $(command -v jq) ] && echo "please install jq" && exit 1
 [ -z $(command -v hq) ] && echo "please install hq to read online titles" && online=0
@@ -74,6 +75,7 @@ do
 		vdepth=$(echo $json | jq ".media.track[$i].BitDepth" | tr -d '"')
 		vframe=$(echo $json | jq ".media.track[$i].FrameRate" | tr -d '"')
 		[ "$vframe" == "23.976" ] && vframe="24"
+		vframe=$(echo $vframe | grep -o '^[0-9]*')
 		vsrc=$(echo $json | jq ".media.track[$i].extra.OriginalSourceMedium" | tr -d '"')
 		[ "$vsrc" == "Blu-ray" ] && vsrc="BD"
 		VID="$VID""$vsrc"".""$vformat"".""$vheight""p""$vframe""f""$vdepth""b""."
