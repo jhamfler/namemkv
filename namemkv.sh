@@ -26,14 +26,14 @@ vids=$(echo $json | jq '.media.track[0].VideoCount')
 dubs=$(echo $json | jq '.media.track[0].AudioCount')
 subs=$(echo $json | jq '.media.track[0].TextCount')
 
-format=$(echo $json | jq '.media.track[0].Format'|tr -d '"')
+format=$(echo $json | jq '.media.track[0].Format' | tr -d '"')
 echo Format: $format
 if [ "$format" == "Matroska" ]
 then
 	format='mkv'
 else
-		echo format not matroska
-		exit 1
+	echo format not matroska
+	exit 1
 fi
 
 name=$(echo $json | jq '.media.track[0].Title' | tr -d '"' | tr ' ' '.' | sed 's/:/.-/g')
@@ -46,7 +46,7 @@ then
 	yeardata=$(curl https://www.imdb.com/find\?q\="$yeardata"\&ref_\=nv_sr_sm)
 	yeardata=$(cat test)
 	yeardata=$(echo $yeardata | hq td data | sed -n 2p | grep -o '(.*)' | grep -o '[0-9]*')
-	[ ! -z "$yeardata"	] && [ -z "$(echo $yeardata | grep -E '[0-9]{5}')" ] && [ ! -z "$(echo $yeardata | grep -E '[0-9]{4}')" ] && echo releaseyear: $yeardata && year='.'$yeardata
+	[ ! -z "$yeardata" ] && [ -z "$(echo $yeardata | grep -E '[0-9]{5}')" ] && [ ! -z "$(echo $yeardata | grep -E '[0-9]{4}')" ] && echo releaseyear: $yeardata && year='.'$yeardata
 fi
 
 VID=""
@@ -64,10 +64,10 @@ do
 		case $vformat in
 			AVC)
 				vformat="h264"
-      	;;
+				;;
 			HEVC)
 				vformat="h265"
-     		;;
+				;;
 		esac
 		echo Videoformat: "$vformat"
 		vheight=$(echo $json | jq ".media.track[$i].Height" | tr -d '"')
@@ -105,7 +105,6 @@ do
 		if [ -z "$rlang" ]
 		then
 			echo unmapped $tlang
-			exit 2
 		else
 			tlang="$rlang"
 		fi
